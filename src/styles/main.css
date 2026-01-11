@@ -63,7 +63,7 @@
   display: flex;
   min-height: 0;
   -webkit-app-region: no-drag;
-  padding: 12px 0 0 32px;
+  padding: 0 0 0 32px;
   grid-column: 1;
   grid-row: 2;
 }
