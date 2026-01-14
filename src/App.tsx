@@ -145,6 +145,8 @@ function MainApp() {
     clearDebugEntries
   } = useDebugLog();
 
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
+
   const updater = useUpdater({ onDebug: addDebugEntry });
 
   const scaleShortcutLabel = (() => {
@@ -487,6 +489,22 @@ function MainApp() {
     listThreadsForWorkspace
   });
 
+  // Cmd+N shortcut to create new agent in active workspace
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+      if (modifierKey && event.key === "n") {
+        event.preventDefault();
+        if (activeWorkspace) {
+          void handleAddAgent(activeWorkspace);
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeWorkspace, handleAddAgent]);
+
   async function handleAddWorkspace() {
     try {
       const workspace = await addWorkspace();
@@ -538,6 +556,8 @@ function MainApp() {
     if (isCompact) {
       setActiveTab("codex");
     }
+    // Focus the composer input after creating the agent
+    setTimeout(() => composerInputRef.current?.focus(), 0);
   }
 
   async function handleAddWorktreeAgent(
@@ -927,6 +947,7 @@ function MainApp() {
       onSelectAccessMode={setAccessMode}
       skills={skills}
       files={files}
+      textareaRef={composerInputRef}
     />
   ) : null;
 
