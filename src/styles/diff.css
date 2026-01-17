@@ -453,6 +453,8 @@
 
 .git-pr-branches {
   font-family: "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--text-faint);
 }
 
 .git-pr-draft {

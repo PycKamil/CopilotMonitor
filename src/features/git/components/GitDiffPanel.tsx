@@ -506,17 +506,12 @@ export function GitDiffPanel({
                     <span className="git-pr-number">#{pullRequest.number}</span>
                     <span className="git-pr-title-text">
                       {pullRequest.title}{" "}
-                      <span className="git-pr-author-inline">
-                        by @{author}
-                      </span>
+                      <span className="git-pr-author-inline">@{author}</span>
                     </span>
                   </span>
                   <span className="git-pr-time">{relativeTime}</span>
                 </div>
                 <div className="git-pr-meta">
-                  <span className="git-pr-pill git-pr-branches">
-                    {pullRequest.headRefName} -&gt; {pullRequest.baseRefName}
-                  </span>
                   {pullRequest.isDraft && (
                     <span className="git-pr-pill git-pr-draft">Draft</span>
                   )}
