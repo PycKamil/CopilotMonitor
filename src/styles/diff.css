@@ -600,7 +600,7 @@
 }
 
 .diff-counts-inline {
-  font-size: 10px;
+  font-size: var(--code-font-size, 11px);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
@@ -609,7 +609,7 @@
   border-radius: 999px;
   border: 1px solid var(--border-muted);
   background: var(--surface-control);
-  font-family: "SF Mono", Menlo, monospace;
+  font-family: var(--code-font-family);
   font-variant-numeric: tabular-nums;
 }
 
@@ -799,8 +799,8 @@
 }
 
 .git-issue-number {
-  font-family: "SF Mono", Menlo, monospace;
-  font-size: 11px;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size, 11px);
   color: var(--text-faint);
 }
 
@@ -844,18 +844,18 @@
 
 .git-pr-number,
 .git-pr-author-inline {
-  font-family: "SF Mono", Menlo, monospace;
-  font-size: 11px;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size, 11px);
   color: var(--text-faint);
 }
 
 .git-pr-author-inline {
-  font-size: 10px;
+  font-size: var(--code-font-size, 11px);
 }
 
 .git-pr-branches {
-  font-family: "SF Mono", Menlo, monospace;
-  font-size: 10px;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size, 11px);
   color: var(--text-faint);
 }
 
@@ -910,8 +910,8 @@
 }
 
 .git-log-sha {
-  font-family: "SF Mono", Menlo, monospace;
-  font-size: 10px;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size, 11px);
 }
 
 .git-log-sep {
@@ -932,8 +932,8 @@
 
 .commit-message-input {
   width: 100%;
-  font-family: "SF Mono", Menlo, Monaco, monospace;
-  font-size: 11px;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size, 11px);
   line-height: 1.5;
   color: var(--text-muted);
   background: transparent;

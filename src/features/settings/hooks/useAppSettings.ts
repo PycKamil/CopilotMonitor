@@ -2,6 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { AppSettings } from "../../../types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
+import {
+  DEFAULT_CODE_FONT_FAMILY,
+  DEFAULT_UI_FONT_FAMILY,
+  CODE_FONT_SIZE_DEFAULT,
+  clampCodeFontSize,
+  normalizeFontFamily,
+} from "../../../utils/fonts";
 
 const allowedThemes = new Set(["system", "light", "dark"]);
 
@@ -29,6 +36,9 @@ const defaultSettings: AppSettings = {
   lastComposerReasoningEffort: null,
   uiScale: UI_SCALE_DEFAULT,
   theme: "system",
+  uiFontFamily: DEFAULT_UI_FONT_FAMILY,
+  codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
+  codeFontSize: CODE_FONT_SIZE_DEFAULT,
   notificationSoundsEnabled: true,
   experimentalCollabEnabled: false,
   experimentalSteerEnabled: false,
@@ -45,6 +55,15 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     ...settings,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
+    uiFontFamily: normalizeFontFamily(
+      settings.uiFontFamily,
+      DEFAULT_UI_FONT_FAMILY,
+    ),
+    codeFontFamily: normalizeFontFamily(
+      settings.codeFontFamily,
+      DEFAULT_CODE_FONT_FAMILY,
+    ),
+    codeFontSize: clampCodeFontSize(settings.codeFontSize),
   };
 }
 

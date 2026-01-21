@@ -97,6 +97,9 @@ export type AppSettings = {
   lastComposerReasoningEffort: string | null;
   uiScale: number;
   theme: ThemePreference;
+  uiFontFamily: string;
+  codeFontFamily: string;
+  codeFontSize: number;
   notificationSoundsEnabled: boolean;
   experimentalCollabEnabled: boolean;
   experimentalSteerEnabled: boolean;

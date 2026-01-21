@@ -327,6 +327,12 @@ pub(crate) struct AppSettings {
     pub(crate) ui_scale: f64,
     #[serde(default = "default_theme", rename = "theme")]
     pub(crate) theme: String,
+    #[serde(default = "default_ui_font_family", rename = "uiFontFamily")]
+    pub(crate) ui_font_family: String,
+    #[serde(default = "default_code_font_family", rename = "codeFontFamily")]
+    pub(crate) code_font_family: String,
+    #[serde(default = "default_code_font_size", rename = "codeFontSize")]
+    pub(crate) code_font_size: u8,
     #[serde(
         default = "default_notification_sounds_enabled",
         rename = "notificationSoundsEnabled"
@@ -392,6 +398,19 @@ fn default_ui_scale() -> f64 {
 
 fn default_theme() -> String {
     "system".to_string()
+}
+
+fn default_ui_font_family() -> String {
+    "\"SF Pro Text\", \"SF Pro Display\", -apple-system, \"Helvetica Neue\", sans-serif"
+        .to_string()
+}
+
+fn default_code_font_family() -> String {
+    "\"SF Mono\", \"SFMono-Regular\", Menlo, Monaco, monospace".to_string()
+}
+
+fn default_code_font_size() -> u8 {
+    11
 }
 
 fn default_composer_model_shortcut() -> Option<String> {
@@ -508,6 +527,9 @@ impl Default for AppSettings {
             last_composer_reasoning_effort: None,
             ui_scale: 1.0,
             theme: default_theme(),
+            ui_font_family: default_ui_font_family(),
+            code_font_family: default_code_font_family(),
+            code_font_size: default_code_font_size(),
             notification_sounds_enabled: true,
             experimental_collab_enabled: false,
             experimental_steer_enabled: false,
@@ -575,6 +597,9 @@ mod tests {
         assert!(settings.last_composer_reasoning_effort.is_none());
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
+        assert!(settings.ui_font_family.contains("SF Pro Text"));
+        assert!(settings.code_font_family.contains("SF Mono"));
+        assert_eq!(settings.code_font_size, 11);
         assert!(settings.notification_sounds_enabled);
         assert!(!settings.experimental_steer_enabled);
         assert!(!settings.dictation_enabled);

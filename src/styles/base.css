@@ -6,6 +6,10 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   color-scheme: light dark;
+  --ui-font-family: "SF Pro Text", "SF Pro Display", -apple-system, "Helvetica Neue",
+    sans-serif;
+  --code-font-family: "SF Mono", "SFMono-Regular", Menlo, Monaco, monospace;
+  --code-font-size: 11px;
   --text-primary: #e6e7ea;
   --text-strong: #ffffff;
   --text-emphasis: rgba(255, 255, 255, 0.9);
@@ -297,6 +301,7 @@ body {
   transform-origin: top left;
   --main-topbar-height: 44px;
   transition: grid-template-columns 220ms ease;
+  font-family: var(--ui-font-family);
 }
 
 .app.ui-scale-default {

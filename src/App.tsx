@@ -1614,7 +1614,10 @@ function MainApp() {
           "--plan-panel-height": `${planPanelHeight}px`,
           "--terminal-panel-height": `${terminalPanelHeight}px`,
           "--debug-panel-height": `${debugPanelHeight}px`,
-          "--ui-scale": String(uiScale)
+          "--ui-scale": String(uiScale),
+          "--ui-font-family": appSettings.uiFontFamily,
+          "--code-font-family": appSettings.codeFontFamily,
+          "--code-font-size": `${appSettings.codeFontSize}px`
         } as React.CSSProperties
       }
     >
