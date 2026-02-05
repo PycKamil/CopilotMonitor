@@ -1066,12 +1066,9 @@ function MainApp() {
   const activePlan = activeThreadId
     ? planByThread[activeThreadId] ?? null
     : null;
-  const activeThreadProcessing = activeThreadId
-    ? threadStatusById[activeThreadId]?.isProcessing ?? false
-    : false;
-  const hasActivePlan =
-    Boolean(activePlan && (activePlan.steps.length > 0 || activePlan.explanation)) ||
-    activeThreadProcessing;
+  const hasActivePlan = Boolean(
+    activePlan && (activePlan.steps.length > 0 || activePlan.explanation)
+  );
   const showHome = !activeWorkspace;
   const showWorkspaceHome = Boolean(activeWorkspace && !activeThreadId && !isNewAgentDraftMode);
   const showComposer = (!isCompact
