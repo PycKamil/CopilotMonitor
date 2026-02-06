@@ -174,11 +174,8 @@ export function Sidebar({
     });
   const {
     sessionPercent,
-    weeklyPercent,
     sessionResetLabel,
-    weeklyResetLabel,
     creditsLabel,
-    showWeekly,
   } = getUsageLabels(accountRateLimits, usageShowRemaining);
   const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
@@ -660,11 +657,8 @@ export function Sidebar({
       </div>
       <SidebarFooter
         sessionPercent={sessionPercent}
-        weeklyPercent={weeklyPercent}
         sessionResetLabel={sessionResetLabel}
-        weeklyResetLabel={weeklyResetLabel}
         creditsLabel={creditsLabel}
-        showWeekly={showWeekly}
       />
       <SidebarCornerActions
         onOpenSettings={onOpenSettings}

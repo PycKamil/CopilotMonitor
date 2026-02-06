@@ -105,6 +105,16 @@ export type ThreadSummary = {
   updatedAt: number;
 };
 
+export type ThreadHistorySnapshot = {
+  version: number;
+  workspaceId: string;
+  activeThreadId: string | null;
+  threads: ThreadSummary[];
+  itemsByThread: Record<string, ConversationItem[]>;
+  threadParentById?: Record<string, string>;
+  savedAt?: number;
+};
+
 export type ReviewTarget =
   | { type: "uncommittedChanges" }
   | { type: "baseBranch"; branch: string }
