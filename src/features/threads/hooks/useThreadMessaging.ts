@@ -532,9 +532,7 @@ export function useThreadMessaging({
 
       const rateLimits = rateLimitsByWorkspace[activeWorkspace.id] ?? null;
       const primaryUsed = rateLimits?.primary?.usedPercent;
-      const secondaryUsed = rateLimits?.secondary?.usedPercent;
       const primaryReset = rateLimits?.primary?.resetsAt;
-      const secondaryReset = rateLimits?.secondary?.resetsAt;
       const credits = rateLimits?.credits ?? null;
 
       const normalizeReset = (value?: number | null) => {
@@ -571,14 +569,6 @@ export function useThreadMessaging({
         const reset = resetLabel(primaryReset);
         lines.push(
           `- Session usage: ${Math.round(primaryUsed)}%${
-            reset ? ` (resets ${reset})` : ""
-          }`,
-        );
-      }
-      if (typeof secondaryUsed === "number") {
-        const reset = resetLabel(secondaryReset);
-        lines.push(
-          `- Weekly usage: ${Math.round(secondaryUsed)}%${
             reset ? ` (resets ${reset})` : ""
           }`,
         );

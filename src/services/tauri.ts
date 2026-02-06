@@ -7,6 +7,7 @@ import type {
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
+  ThreadHistorySnapshot,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -741,6 +742,33 @@ export async function listThreads(
   limit?: number | null,
 ) {
   return invoke<any>("list_threads", { workspaceId, cursor, limit });
+}
+
+export async function loadThreadHistory(
+  workspaceId: string,
+): Promise<ThreadHistorySnapshot | null> {
+  try {
+    return await invoke<ThreadHistorySnapshot>("thread_history_load", { workspaceId });
+  } catch (error) {
+    if (isMissingTauriInvokeError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function saveThreadHistory(
+  workspaceId: string,
+  history: ThreadHistorySnapshot,
+): Promise<void> {
+  try {
+    await invoke("thread_history_save", { workspaceId, history });
+  } catch (error) {
+    if (isMissingTauriInvokeError(error)) {
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function listMcpServerStatus(

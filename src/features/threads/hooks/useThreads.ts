@@ -1,5 +1,12 @@
-import { useCallback, useMemo, useReducer, useRef } from "react";
-import type { CustomPromptOption, DebugEntry, WorkspaceInfo } from "../../../types";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import type {
+  ConversationItem,
+  CustomPromptOption,
+  DebugEntry,
+  ThreadHistorySnapshot,
+  ThreadSummary,
+  WorkspaceInfo,
+} from "../../../types";
 import { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
@@ -13,7 +20,11 @@ import { useThreadRateLimits } from "./useThreadRateLimits";
 import { useThreadSelectors } from "./useThreadSelectors";
 import { useThreadStatus } from "./useThreadStatus";
 import { useThreadUserInput } from "./useThreadUserInput";
-import { setThreadName as setThreadNameService } from "../../../services/tauri";
+import {
+  loadThreadHistory,
+  saveThreadHistory,
+  setThreadName as setThreadNameService,
+} from "../../../services/tauri";
 import { makeCustomNameKey, saveCustomName } from "../utils/threadStorage";
 
 type UseThreadsOptions = {
@@ -65,6 +76,9 @@ export function useThreads({
     getPinTimestamp,
   } = useThreadStorage();
   void pinnedThreadsVersion;
+  const historyLoadedRef = useRef<Record<string, boolean>>({});
+  const lastSavedHistoryRef = useRef<Record<string, string>>({});
+  const historySaveTimerRef = useRef<number | null>(null);
 
   const activeWorkspaceId = activeWorkspace?.id ?? null;
   const { activeThreadId, activeItems } = useThreadSelectors({
@@ -72,6 +86,174 @@ export function useThreads({
     activeThreadIdByWorkspace: state.activeThreadIdByWorkspace,
     itemsByThread: state.itemsByThread,
   });
+
+  const applyThreadHistory = useCallback(
+    (workspaceId: string, snapshot: ThreadHistorySnapshot) => {
+      const persistedThreads = Array.isArray(snapshot.threads)
+        ? (snapshot.threads as ThreadSummary[])
+        : [];
+      const itemsByThread = snapshot.itemsByThread ?? {};
+      const existingThreads = state.threadsByWorkspace[workspaceId] ?? [];
+      const existingIds = new Set(existingThreads.map((thread) => thread.id));
+      const additions = persistedThreads.filter(
+        (thread) => thread?.id && !existingIds.has(thread.id),
+      );
+      const mergedThreads = [...existingThreads, ...additions].sort(
+        (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
+      );
+      if (mergedThreads.length > 0 && additions.length > 0) {
+        dispatch({ type: "setThreads", workspaceId, threads: mergedThreads });
+      } else if (existingThreads.length === 0 && mergedThreads.length > 0) {
+        dispatch({ type: "setThreads", workspaceId, threads: mergedThreads });
+      }
+      mergedThreads.forEach((thread) => {
+        const items = itemsByThread[thread.id];
+        if (!Array.isArray(items) || items.length === 0) {
+          return;
+        }
+        const existingItems = state.itemsByThread[thread.id] ?? [];
+        if (existingItems.length === 0) {
+          dispatch({ type: "setThreadItems", threadId: thread.id, items });
+        }
+        const lastAgent = [...items]
+          .reverse()
+          .find(
+            (item: ConversationItem) =>
+              item.kind === "message" && item.role === "assistant",
+          );
+        if (lastAgent && lastAgent.kind === "message") {
+          dispatch({
+            type: "setLastAgentMessage",
+            threadId: thread.id,
+            text: lastAgent.text,
+            timestamp: thread.updatedAt ?? Date.now(),
+          });
+        }
+        loadedThreadsRef.current[thread.id] = true;
+      });
+      const parents = snapshot.threadParentById ?? {};
+      Object.entries(parents).forEach(([threadId, parentId]) => {
+        if (typeof parentId === "string" && parentId) {
+          dispatch({ type: "setThreadParent", threadId, parentId });
+        }
+      });
+      if (
+        snapshot.activeThreadId &&
+        !state.activeThreadIdByWorkspace[workspaceId]
+      ) {
+        dispatch({
+          type: "setActiveThreadId",
+          workspaceId,
+          threadId: snapshot.activeThreadId,
+        });
+      }
+    },
+    [dispatch, loadedThreadsRef, state.activeThreadIdByWorkspace, state.itemsByThread, state.threadsByWorkspace],
+  );
+
+  const buildThreadHistorySnapshot = useCallback(
+    (workspaceId: string): ThreadHistorySnapshot => {
+      const threads = state.threadsByWorkspace[workspaceId] ?? [];
+      const itemsByThread: Record<string, ConversationItem[]> = {};
+      const threadParentById: Record<string, string> = {};
+      threads.forEach((thread) => {
+        const items = state.itemsByThread[thread.id];
+        if (items && items.length > 0) {
+          itemsByThread[thread.id] = items;
+        }
+        const parentId = state.threadParentById[thread.id];
+        if (parentId) {
+          threadParentById[thread.id] = parentId;
+        }
+      });
+      return {
+        version: 1,
+        workspaceId,
+        activeThreadId: state.activeThreadIdByWorkspace[workspaceId] ?? null,
+        threads,
+        itemsByThread,
+        threadParentById,
+        savedAt: Date.now(),
+      };
+    },
+    [
+      state.activeThreadIdByWorkspace,
+      state.itemsByThread,
+      state.threadParentById,
+      state.threadsByWorkspace,
+    ],
+  );
+
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    if (historyLoadedRef.current[activeWorkspaceId]) {
+      return;
+    }
+    historyLoadedRef.current[activeWorkspaceId] = true;
+    void (async () => {
+      try {
+        const snapshot = await loadThreadHistory(activeWorkspaceId);
+        if (snapshot) {
+          applyThreadHistory(activeWorkspaceId, snapshot);
+        }
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-thread-history-load-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "thread/history load error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      }
+    })();
+  }, [activeWorkspaceId, applyThreadHistory, onDebug]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const workspaceIds = new Set<string>([
+      ...Object.keys(state.threadsByWorkspace),
+      ...Object.keys(state.activeThreadIdByWorkspace),
+    ]);
+    if (workspaceIds.size === 0) {
+      return;
+    }
+    if (historySaveTimerRef.current) {
+      window.clearTimeout(historySaveTimerRef.current);
+    }
+    historySaveTimerRef.current = window.setTimeout(() => {
+      workspaceIds.forEach((workspaceId) => {
+        const snapshot = buildThreadHistorySnapshot(workspaceId);
+        const serialized = JSON.stringify(snapshot);
+        if (lastSavedHistoryRef.current[workspaceId] === serialized) {
+          return;
+        }
+        lastSavedHistoryRef.current[workspaceId] = serialized;
+        void saveThreadHistory(workspaceId, snapshot).catch((error) => {
+          onDebug?.({
+            id: `${Date.now()}-client-thread-history-save-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "thread/history save error",
+            payload: error instanceof Error ? error.message : String(error),
+          });
+        });
+      });
+    }, 750);
+    return () => {
+      if (historySaveTimerRef.current) {
+        window.clearTimeout(historySaveTimerRef.current);
+      }
+    };
+  }, [
+    buildThreadHistorySnapshot,
+    onDebug,
+    state.activeThreadIdByWorkspace,
+    state.threadsByWorkspace,
+  ]);
 
   const { refreshAccountRateLimits } = useThreadRateLimits({
     activeWorkspaceId,

@@ -18,6 +18,7 @@ mod rules;
 mod settings;
 mod state;
 mod storage;
+mod thread_history;
 mod shared;
 mod terminal;
 mod types;
@@ -167,6 +168,8 @@ pub fn run() {
             dictation::dictation_cancel,
             local_usage::local_usage_snapshot,
             local_usage::copilot_usage_fetch,
+            thread_history::thread_history_load,
+            thread_history::thread_history_save,
             notifications::is_macos_debug_build,
             notifications::send_notification_fallback
         ])

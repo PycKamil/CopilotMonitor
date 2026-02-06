@@ -20,6 +20,7 @@ struct PromptState {
     turn_id: String,
     item_id: String,
     text: String,
+    emit_events: bool,
 }
 
 pub(crate) struct AcpSession {
@@ -60,6 +61,7 @@ impl AcpSession {
         &self,
         session_id: &str,
         event_sink: &E,
+        emit_events: bool,
     ) -> Result<String, String> {
         let mut prompt_states = self.prompt_states.lock().await;
         if prompt_states.contains_key(session_id) {
@@ -73,9 +75,14 @@ impl AcpSession {
                 turn_id: turn_id.clone(),
                 item_id: item_id.clone(),
                 text: String::new(),
+                emit_events,
             },
         );
         drop(prompt_states);
+
+        if !emit_events {
+            return Ok(turn_id);
+        }
 
         let payload = AppServerEvent {
             workspace_id: self.entry.id.clone(),
@@ -95,7 +102,16 @@ impl AcpSession {
         let mut prompt_states = self.prompt_states.lock().await;
         let state = prompt_states.get_mut(session_id)?;
         state.text.push_str(delta);
-        Some(state.item_id.clone())
+        if state.emit_events {
+            Some(state.item_id.clone())
+        } else {
+            None
+        }
+    }
+
+    pub(crate) async fn take_prompt_text(&self, session_id: &str) -> Option<String> {
+        let mut prompt_states = self.prompt_states.lock().await;
+        prompt_states.remove(session_id).map(|state| state.text)
     }
 
     pub(crate) async fn finish_prompt<E: EventSink>(
@@ -110,6 +126,9 @@ impl AcpSession {
         let Some(state) = state else {
             return;
         };
+        if !state.emit_events {
+            return;
+        }
 
         let item_payload = AppServerEvent {
             workspace_id: self.entry.id.clone(),
