@@ -12,7 +12,7 @@ vi.mock("../../../services/tauri", () => ({
 
 const workspace: WorkspaceInfo = {
   id: "workspace-1",
-  name: "CodexMonitor",
+  name: "CopilotMonitor",
   path: "/tmp/codex",
   connected: true,
   settings: { sidebarCollapsed: false },
@@ -121,5 +121,33 @@ describe("useModels", () => {
       expect(result.current.selectedModelId).toBe("custom-model");
       expect(result.current.selectedEffort).toBe("high");
     });
+  });
+
+  it("accepts models.list responses with string reasoning efforts", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        models: [
+          {
+            id: "copilot-1",
+            name: "Copilot One",
+            supportedReasoningEfforts: ["low", "high"],
+            defaultReasoningEffort: "low",
+            isDefault: true,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: workspace }),
+    );
+
+    await waitFor(() => expect(result.current.models.length).toBeGreaterThan(0));
+
+    expect(result.current.selectedModel?.id).toBe("copilot-1");
+    expect(result.current.selectedModel?.displayName).toBe("Copilot One");
+    expect(result.current.reasoningOptions).toEqual(["low", "high"]);
+    expect(result.current.reasoningSupported).toBe(true);
   });
 });
