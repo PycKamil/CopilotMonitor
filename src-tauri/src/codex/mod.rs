@@ -12,12 +12,21 @@ pub(crate) mod config;
 pub(crate) mod home;
 
 use crate::backend::acp_server::{self, AcpSession};
-use crate::backend::events::{AppServerEvent, EventSink};
+use crate::backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
 use crate::backend::session::WorkspaceSessionKind;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
+
+#[derive(Clone, Default)]
+struct NullEventSink;
+
+impl EventSink for NullEventSink {
+    fn emit_app_server_event(&self, _event: AppServerEvent) {}
+    fn emit_terminal_output(&self, _event: TerminalOutput) {}
+    fn emit_terminal_exit(&self, _event: TerminalExit) {}
+}
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
@@ -376,7 +385,7 @@ async fn send_user_message_acp(
 
     let prompt = vec![json!({ "type": "text", "text": trimmed_text })];
     let event_sink = TauriEventSink::new(app);
-    let turn_id = session.begin_prompt(&thread_id, &event_sink).await?;
+    let turn_id = session.begin_prompt(&thread_id, &event_sink, true).await?;
     let response = session
         .send_request(
             "session/prompt",
@@ -769,6 +778,58 @@ Changes:\n{diff}"
     )
 }
 
+async fn generate_commit_message_acp(
+    state: &State<'_, AppState>,
+    workspace_id: String,
+) -> Result<String, String> {
+    let diff = crate::git::get_workspace_diff(&workspace_id, state).await?;
+    if diff.trim().is_empty() {
+        return Err("No changes to generate commit message for".to_string());
+    }
+
+    let prompt = build_commit_message_prompt(&diff);
+    let session = get_acp_session(&state.sessions, &workspace_id).await?;
+    let response = session
+        .send_request("session/new", json!({ "cwd": session.entry.path, "mcpServers": [] }))
+        .await?;
+    if response.get("error").is_some() {
+        return Err(format!("session/new failed: {response}"));
+    }
+    let payload = response.get("result").unwrap_or(&response);
+    let session_id = payload
+        .get("sessionId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "missing sessionId in session/new response".to_string())?;
+
+    let prompt = vec![json!({ "type": "text", "text": prompt })];
+    let event_sink = NullEventSink::default();
+    session.begin_prompt(session_id, &event_sink, false).await?;
+    let response = session
+        .send_request(
+            "session/prompt",
+            json!({ "sessionId": session_id, "prompt": prompt }),
+        )
+        .await;
+    let response = match response {
+        Ok(value) => value,
+        Err(error) => {
+            session.clear_prompt(session_id).await;
+            return Err(error);
+        }
+    };
+    if response.get("error").is_some() {
+        session.clear_prompt(session_id).await;
+        return Err(format!("session/prompt failed: {response}"));
+    }
+
+    let text = session.take_prompt_text(session_id).await.unwrap_or_default();
+    let message = text.lines().next().unwrap_or("").trim();
+    if message.is_empty() {
+        return Err("No commit message generated".to_string());
+    }
+    Ok(message.to_string())
+}
+
 /// Gets the diff content for commit message generation
 #[tauri::command]
 pub(crate) async fn get_commit_message_prompt(
@@ -823,7 +884,27 @@ pub(crate) async fn generate_commit_message(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, String> {
-    let _ = (workspace_id, state, app);
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "generate_commit_message",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await?;
+        let message = response
+            .get("result")
+            .and_then(Value::as_str)
+            .or_else(|| response.as_str())
+            .map(|value| value.to_string())
+            .ok_or_else(|| format!("generate_commit_message failed: {response}"))?;
+        return Ok(message);
+    }
+
+    if is_copilot_backend(&state).await {
+        return generate_commit_message_acp(&state, workspace_id).await;
+    }
+
     Err(acp_only_error("generate_commit_message"))
 }
 
